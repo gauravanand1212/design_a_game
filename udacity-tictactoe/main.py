@@ -16,25 +16,30 @@
 #
 import webapp2
 from google.appengine.api import mail
+SENDER = 'TicTacToe admin <possible-arbor-125505@appspot.gserviceaccount.com>'
 
 
 class MainHandler(webapp2.RequestHandler):
+    """Default class that prints a simple hello world message"""
     def get(self):
         self.response.write('Hello world!')
 
 
 class Mailer(webapp2.RequestHandler):
-    """Send emails to players informing them about their move"""
+    """Send emails to players informing them about their move
+
+    """
     def post(self):
+    """Method to send email to player after a move from opponent has been 
+    successfully recorded
+    """
         message = mail.EmailMessage()
         message.to = self.request.POST['to']
-        message.sender =
-        'TicTacToe admin <possible-arbor-125505@appspot.gserviceaccount.com>'
+        message.sender = SENDER
         message.subject = 'Your move pending in tictactoe !'
         message.body = "Your opponent just made their move. Your turn ! "
         if self.request.POST['state'] == "win":
-            message.body += "Result: Game over ! %s wins" %
-            self.request.POST['opponent']
+            message.body += "Result: Game over ! %s wins" % self.request.POST['opponent']
         elif self.request.POST['state'] == "draw":
             message.body += "Result: Game drawn"
         else:
