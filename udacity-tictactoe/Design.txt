@@ -1,0 +1,39 @@
+** Design considerations for the udacity tic tac toe project **
+
+Game board design:
+This is a project without a UI. Since we are dealing with output
+from endpoints only, it is a bit difficult to visualize a 3x3
+board for tic tac toe using endpoint explorer output. I decided to 
+store game board in a row1, row2, row3 format, where each row is a 
+single dimensional array. It gave a better idea of the game board.
+If we had a UI, I would be using a single 2D array to represent the 
+game state
+
+Additional endpoints:
+1. Endpoint to get all users - tracking users down was important to 
+keep a quick list of users at hand. It helped knowing the names of the
+users to track down their games
+
+Design Decisions:
+Q. Where should I put the bulk of the processing? In methods within the
+class or within endpoint methods?
+A. I took the Guess a Number game as a template and decided to put bulk
+of the processing in class methods. One reason to do this is the scalability
+of the program. This logic, now in model class rather than endpoint method,
+can be used in places other than endpoints. That could provide better 
+code reusability and scalability. All data validations and exceptions
+have been included in the endpoint methods so only clean data passes into 
+the class methods. I feel I could have put the exceptions in the class methods
+as well to ensure those checks are performed even when the class methods 
+are called from places other than endpoints.
+
+Q. Should I use cronjobs or taskqueues to send emails?
+A. This boiled down to the game requirements and how I defined the messaging 
+policy. Instead of checking periodically for open games and sending users emails
+about getting back to games, which I believe is not ideal due to its dependency on 
+the cron frequency, I decided to use taskqueues and send players emails as
+soon as it is their turn.
+
+Q. What metric to use for rankings?
+A. I just went with the easiest metric I could think of. I decided to drop the
+complications around drawn games by decided to ignore drawn games
