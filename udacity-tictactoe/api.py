@@ -11,9 +11,10 @@ from google.appengine.api import taskqueue
 from protorpc import remote, messages
 
 from models import User, Game
-from models import UserForms, ShowGamesForm, ShowGamesForms, RankingForm
+from models import UserForms, ShowGamesForm, ShowGamesForms
 from models import GameForm, NewGameForm, MakeMoveForm, StringMessage
 from models import GameHistoryForm, GameHistoryForms
+from models import RankingForm, RankingForms
 
 from utils import get_by_urlsafe
 
@@ -43,7 +44,18 @@ class TicTacToeApi(remote.Service):
                       name='create_user',
                       http_method='POST')
     def create_user(self, request):
-        """Create a User. Requires a unique username"""
+        """Create a User. Requires a unique username
+
+        Args: 
+          CREATE_USER_REQUEST: user and email
+
+        Returns:
+          Confirmation message about creation of user in database
+
+        Raises:
+          ConflictException if a user with same name already exists
+
+        """
         if User.query(User.name == request.user_name).get():
             raise endpoints.ConflictException(
                     'A User with that name already exists!')
@@ -57,7 +69,12 @@ class TicTacToeApi(remote.Service):
                       name='get_users',
                       http_method='GET')
     def get_users(self, request):
-        """Get a list of all users and their stats"""
+        """Get a list of all users and their stats
+
+        Returns:
+          A list of all users in form UserForms
+
+        """
         return UserForms(items=[user.to_form() for user in User.query()])
 
     @endpoints.method(request_message=NEW_GAME_REQUEST,
@@ -66,7 +83,19 @@ class TicTacToeApi(remote.Service):
                       name='create_new_game',
                       http_method='POST')
     def create_new_game(self, request):
-        """Create a new tictactoe game between 2 players"""
+        """Create a new tictactoe game between 2 players
+
+        Args: 
+          NEW_GAME_REQUEST: Details of new game in GameForm format
+
+        Returns:
+          New game in GameForm format along with Confirmation message
+
+        Raises:
+          NotFoundException: if either user specified in input GameForm
+          is not found in user model
+
+        """
         userX = User.query(User.name == request.userX).get()
         userO = User.query(User.name == request.userO).get()
         if not userX:
@@ -88,7 +117,18 @@ class TicTacToeApi(remote.Service):
                       name='show_game',
                       http_method='GET')
     def show_game(self, request):
-        """Show current game state"""
+        """Show current game state
+
+        Args:
+          SHOW_GAME_REQUEST: request containing urlsafekey of a game
+
+        Returns:
+          Existing game details in GameForm format
+
+        Raises:
+          NotFoundException: If no game found using the urlsafekey provided
+
+        """
         game = get_by_urlsafe(request.urlsafe_game_key, Game)
         if game:
             return game.to_form('Game details')
@@ -101,7 +141,18 @@ class TicTacToeApi(remote.Service):
                       name='show_game_history',
                       http_method='GET')
     def show_game_history(self, request):
-        """Show current game state"""
+        """Show game history
+
+        Args:
+          SHOW_GAME_REQUEST: request containing urlsafekey of a game
+
+        Returns:
+          History of moves and results in a game in GameHistoryForms format
+
+        Raises:
+          NotFoundException: If no game found using the urlsafekey provided
+
+        """
         game = get_by_urlsafe(request.urlsafe_game_key, Game)
         if game:
             return game.to_historyform()
@@ -114,7 +165,16 @@ class TicTacToeApi(remote.Service):
                       name='get_user_games',
                       http_method='GET')
     def get_user_games(self, request):
-        """Show all active games for a user"""
+        """Show all active games for a user
+
+        Args:
+          USER_GAMES_REQUEST: name of the user
+
+        Returns:
+          symbol, opponent and urlsafekey for games the user is
+          still an active participant wrapped in ShowGamesForms format
+
+        """
         result = ShowGamesForms()
         user = User.query(User.name == request.user_name).get().key
 
@@ -128,7 +188,16 @@ class TicTacToeApi(remote.Service):
         return result
 
     def _copyToShowGamesForm(self, game, symbol):
-        """Copy data into ShowGamesForm"""
+        """Copy data into ShowGamesForm
+
+        Args:
+          game: object of class Game
+          symbol: 'X' or 'O' depending on what player chose
+
+        Returns:
+          symbol, opponent and urlsafekey for game in ShowGamesForm format
+
+        """
 
         if symbol == 'X':
             opponent = game.userO.get().name
@@ -146,7 +215,20 @@ class TicTacToeApi(remote.Service):
                       name='cancel_game',
                       http_method='POST')
     def cancel_game(self, request):
-        """Cancel a game and remove from database"""
+        """Cancel a game and remove from database
+
+        Args:
+          SHOW_GAME_REQUEST: urlsafekey for the game
+
+        Returns:
+          Confirmation message about successful game deletion
+
+        Raises:
+          NotFoundException: If no game matches the urlsafekey
+          ForbiddenException: If the game provided is not active or 
+          has already ended
+
+        """
         game = get_by_urlsafe(request.urlsafe_game_key, Game)
         if not game:
             endpoints.NotFoundException('Game not found. Enter valid key')
@@ -155,19 +237,48 @@ class TicTacToeApi(remote.Service):
         game.delete_game()
         return StringMessage(message="Game deleted !")
 
-    @endpoints.method(request_message=USER_GAMES_REQUEST,
-                      response_message=RankingForm,
+    @endpoints.method(response_message=RankingForms,
                       path='userranking',
-                      name='user_ranking',
+                      name='get_user_rankings',
                       http_method='GET')
     def get_user_rankings(self, request):
-        """Get a player's win loss ratio"""
-        user = User.query(User.name == request.name).get()
-        if not user:
-            raise NotFoundException('User not found')
-        games_lost = (user.games_completed-user.games_won-user.games_drawn)
-        win_loss_ratio = user.games_won/games_lost
-        return RankingForm(user_name=user.name, win_loss_ratio=win_loss_ratio)
+        """Get player rankings by win loss ratios
+
+        Returns:
+          Sorted rankings of players ranked by decreasing win-loss
+          ratio in RankingForms format
+
+        Raises:
+          NotFoundException: if no players exist in database
+
+        """
+        users = User.query().fetch()
+        if not users:
+            raise NotFoundException('No users not found')
+
+        ranked_users = []
+        for user in users:
+          games_lost = (user.games_completed-user.games_won-user.games_drawn)
+          # Avoid divide by zero error
+          if games_lost == 0:
+            win_loss_ratio = 1.0
+          else:
+            win_loss_ratio = float(user.games_won/games_lost)
+          ranked_users.append([user.name,win_loss_ratio])
+        ranked_users.sort(key= lambda ranking: ranking[1], reverse=True)
+
+        """Copy to form """
+        retForm = RankingForms()
+        rank = 1
+        for ranked_user in ranked_users:
+          form = RankingForm()
+          form.rank = rank
+          form.user_name = ranked_user[0]
+          form.win_loss_ratio = ranked_user[1]
+          retForm.items.append(form)
+          rank += 1
+        return retForm
+
 
     @endpoints.method(request_message=MAKE_MOVE_REQUEST,
                       response_message=GameForm,
@@ -175,7 +286,28 @@ class TicTacToeApi(remote.Service):
                       name='make_move',
                       http_method='POST')
     def make_move(self, request):
-        """Validates a move, records it and moves the game forward"""
+        """Validates a move, records it and moves the game forward. Also
+        adds email alerts to taskqueue to inform next user of pending moves
+        or game result
+
+        Args:
+          urlsafekey, row, col and player name making the move in the game
+
+        Returns:
+          Game details in GameForm format along with confirmation message
+          about move being recorded
+
+        Raises:
+          NotFoundException: 
+            If no game found using urlsafekey
+          ForbiddenException: 
+            Game has already ended
+            Incorrect row or column value has been passed
+            Invalid move as the cell has already been filled
+          UnauthorizedException:
+            Wrong player is trying to make a move
+
+        """
         game = get_by_urlsafe(request.urlsafe_game_key, Game)
         if not game:
             endpoints.NotFoundException('Game not found. Enter valid key')
@@ -198,6 +330,7 @@ class TicTacToeApi(remote.Service):
         game = game.record_move(request.row, request.col, symbol)
         game.put()
 
+        # Set up taskqueues to send notifications
         email_to = game.next_turn.get().email
         if game.check_winner():
             taskqueue.add(url='/SendMoveNotification',
