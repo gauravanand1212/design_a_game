@@ -15,7 +15,10 @@ TicTacToe is a 2 player game played on a 3x3 board. Each player chooses a symbol
 and enters it on a cell on the board. Players take turn to play their move. Any 
 player with symbols that form a 3-in-a-row horizontally, vertically or diagonally
 wins. If all 9 cells are filled and no one has the winning combination, the game 
-is a draw
+is a draw.
+The system keeps a track of wins, draws and total games played by a user. Players are
+ranked based on their win-loss ratio, which is the ratio of games won and games lost 
+(ignoring games drawn).
 Each game can be retrieved or played by using the path parameter
 `urlsafe_game_key`.
 
@@ -139,6 +142,10 @@ Each game can be retrieved or played by using the path parameter
     - Multiple UserForm container.
  - **StringMessage**
     - General purpose String container.
+ - **RankingForm**
+    - Form containing name, win-loss ratio and rank for a user
+ - **RankingForm*s*
+    - Multiple RankingForm container
  - **GameHistoryForm**
     - Used to show a historical move for a game (user,move,result)
  - **GameHistoryForms**
