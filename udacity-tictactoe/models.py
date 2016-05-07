@@ -54,7 +54,15 @@ class Game(ndb.Model):
 
     @classmethod
     def new_game(cls, userX, userO):
-        """Creates a new empty game between 2 users"""
+        """Creates a new empty game between 2 users
+
+        Args:
+            user keys for players
+
+        Returns:
+            Object of class Game
+
+        """
         board = TicTacToe(row1='___', row2='___', row3='___')
         game = Game(userX=userX, userO=userO, game_ended=False,
                     game_state=board, next_turn=userX)
@@ -68,7 +76,15 @@ class Game(ndb.Model):
         return game
 
     def to_form(self, message):
-        """Returns a GameForm representation of the Game"""
+        """Returns a GameForm representation of the Game
+
+        Args:
+            Optional String message
+
+        Returns:
+            Game details in the GameForm format
+
+        """
         form = GameForm()
         form.userX = self.userX.get().name
         form.userO = self.userO.get().name
@@ -85,7 +101,7 @@ class Game(ndb.Model):
         return form
 
     def to_historyform(self):
-        """Returns a GameForm representation of the Game history"""
+        """Returns a GameHistoryForm representation of the Game history"""
         ret = GameHistoryForms()
         for history in self.history:
             form = GameHistoryForm()
@@ -97,7 +113,14 @@ class Game(ndb.Model):
         return ret
 
     def game_over(self, winner, draw):
-        """end the game, record the winner or draw"""
+        """End the game, record the winner or draw for history
+        and update user statistics in User objects
+
+        Args:
+            winner: user key for winner of the game
+            draw: boolean flag if game is a draw
+
+        """
         if not winner and not draw:
             raise ValueError("No winner specified")
         self.game_ended = True
@@ -106,8 +129,7 @@ class Game(ndb.Model):
         if not draw:
             self.winner = winner
             winner.get().games_won += 1
-            self.history[len(self.history)-1].result =
-            '%s won !' % winner.get().name
+            self.history[len(self.history)-1].result = '%s won !' % winner.get().name
         else:
             self.draw = True
             userX.games_drawn += 1
@@ -122,7 +144,12 @@ class Game(ndb.Model):
         self.put()
 
     def validate_move(self, row, col):
-        """Check if move is on empty space"""
+        """Check if move is on empty space
+
+        Returns:
+            Boolean flag if move is valid
+
+        """
         if row == 0:
             selectedRow = self.game_state.row1
         if row == 1:
@@ -134,14 +161,24 @@ class Game(ndb.Model):
         return False
 
     def record_move(self, row, col, symbol):
-        """Record the move in the game state and update next turn"""
+        """Record the move in the game state and update next turn
+
+        Args:
+            row, column and symbol of the move
+
+        """
+        # Initialize history for the move
         history = GameHistory()
+
+        # Get the row based on input
         if row == 0:
             selectedRow = self.game_state.row1
         if row == 1:
             selectedRow = self.game_state.row2
         if row == 2:
             selectedRow = self.game_state.row3
+
+        # Representation of the selected row after making the move    
         newRow = ''
         for i in range(3):
             if i == col:
@@ -150,6 +187,7 @@ class Game(ndb.Model):
                 newRow += selectedRow[i]
         self.debug = newRow
 
+        # Record the new representation of the row
         if row == 0:
             self.game_state.row1 = newRow
         if row == 1:
@@ -157,6 +195,7 @@ class Game(ndb.Model):
         if row == 2:
             self.game_state.row3 = newRow
 
+        # Update history
         if symbol == "X":
             self.next_turn = self.userO
             history.user = self.userX
@@ -173,7 +212,12 @@ class Game(ndb.Model):
         return self
 
     def check_winner(self):
-        """Check if the game has been won"""
+        """Check if the game has been won
+
+        Returns:
+            Boolean flag if game has ended in a win
+
+        """
         game_arrayX = self.generateArray("X")
         game_arrayO = self.generateArray("O")
         win = False
@@ -219,7 +263,12 @@ class Game(ndb.Model):
         return win
 
     def check_draw(self):
-        """Check if the game is a draw"""
+        """Check if the game is a draw
+
+        Returns:
+            Boolean flag if game has ended in a draw
+
+        """
         draw = True
         for col in range(3):
             if self.game_state.row1[col] == '_':
@@ -236,7 +285,12 @@ class Game(ndb.Model):
         return draw
 
     def delete_game(self):
-        """Delete game and remove it from user stats"""
+        """Delete game and remove it from user stats
+
+        Raises:
+            InternalServerErrorException: if any error occured in deletion
+
+        """
         try:
             userX = self.userX.get()
             userX.games_in_progress -= 1
@@ -249,7 +303,15 @@ class Game(ndb.Model):
             raise endpoints.InternalServerErrorException('Could not delete')
 
     def generateArray(self, symbol):
-        """Mask a symbol with 1's and generate the board as array"""
+        """Mask a symbol with 1's and generate the board as matrix
+
+        Args:
+            symbox 'X' or 'O'
+
+        Returns:
+            array where symbol has been replaced by integer 1
+
+        """
         arr = [[0 for x in range(3)] for x in range(3)]
         for col in range(3):
             arr[0][col] = self.mask(self.game_state.row1[col], symbol)
@@ -325,9 +387,14 @@ class StringMessage(messages.Message):
 
 
 class RankingForm(messages.Message):
-    """Outbound form for showing user rankigns"""
-    user_name = messages.StringField(1)
-    win_loss_ratio = messages.FloatField(2)
+    """Outbound form for showing single user rankigns"""
+    rank = messages.IntegerField(1)
+    user_name = messages.StringField(2)
+    win_loss_ratio = messages.FloatField(3)
+
+class RankingForms(messages.Message):
+    """Outbound form for multiple user rankings"""
+    items = messages.MessageField(RankingForm,1,repeated=True)
 
 
 class GameHistoryForm(messages.Message):
