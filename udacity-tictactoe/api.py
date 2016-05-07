@@ -5,7 +5,6 @@ Messaging system allows users to keep track of the tic tac toe
 board. """
 
 
-import logging
 import endpoints
 from google.appengine.api import taskqueue
 from protorpc import remote, messages
@@ -13,7 +12,6 @@ from protorpc import remote, messages
 from models import User, Game
 from models import UserForms, ShowGamesForm, ShowGamesForms
 from models import GameForm, NewGameForm, MakeMoveForm, StringMessage
-from models import GameHistoryForm, GameHistoryForms
 from models import RankingForm, RankingForms
 
 from utils import get_by_urlsafe
@@ -96,8 +94,8 @@ class TicTacToeApi(remote.Service):
           is not found in user model
 
         """
-        userX = User.query(User.name == request.userX).get()
-        userO = User.query(User.name == request.userO).get()
+        userX = User.query(User.name == request.userX)
+        userO = User.query(User.name == request.userO)
         if not userX:
             raise endpoints.NotFoundException(
                 'User {} does not exist'.format(request.userX))
